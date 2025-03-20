@@ -1,58 +1,59 @@
-import pygame
+import streamlit as st
+import numpy as np
+import matplotlib.pyplot as plt
+import time
 import random
-import math
-# Inicializar Pygame
-pygame.init()
-# Configurar pantalla
-WIDTH, HEIGHT = 500, 500
-screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("Flor Interactiva")
-# Colores
-WHITE = (255, 255, 255)
-YELLOW = (255, 255, 0)
-GREEN = (0, 200, 0)
-# Generar color aleatorio
+
+st.title("💖➡️🌸 Toca la Flor para Cambiar de Color")
+
+# Estado de color (se guarda entre interacciones)
+if "color" not in st.session_state:
+    st.session_state.color = "#ff69b4"  # Color inicial rosa
+
+# Generador de colores aleatorios
 def random_color():
-    return (random.randint(50, 255), random.randint(50, 255), random.randint(50, 255))
-# Clase de la flor
-class Flor:
-    def __init__(self, x, y):
-        self.x = x
-        self.y = y
-        self.petalo_color = random_color()
-        self.centro_color = YELLOW
-    def draw(self):
-        # Dimensiones de los pétalos
-        petalo_ancho = 50
-        petalo_alto = 30
-        radio_petalo = 40  # Distancia entre pétalos y centro
-        # Dibujar pétalos en círculo usando coordenadas polares
-        num_petalos = 6  # Cantidad de pétalos
-        for i in range(num_petalos):
-            angle = (math.pi * 2 / num_petalos) * i  # Ángulo en radianes
-            px = self.x + math.cos(angle) * radio_petalo - petalo_ancho // 2
-            py = self.y + math.sin(angle) * radio_petalo - petalo_alto // 2
-            pygame.draw.ellipse(screen, self.petalo_color, (px, py, petalo_ancho, petalo_alto))
-        
-        # Dibujar centro
-        pygame.draw.circle(screen, self.centro_color, (self.x, self.y), 25)
-        # Dibujar tallo
-        pygame.draw.rect(screen, GREEN, (self.x - 5, self.y + 25, 10, 100))
-    def check_click(self, pos):
-        px, py = pos
-        if (self.x - 25 < px < self.x + 25) and (self.y - 25 < py < self.y + 25):
-            self.petalo_color = random_color()
-# Crear flor centrada
-flor = Flor(WIDTH//2, HEIGHT//2)
-# Loop principal
-running = True
-while running:
-    screen.fill(WHITE)
-    flor.draw()
-    pygame.display.flip()
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            running = False
-        elif event.type == pygame.MOUSEBUTTONDOWN:
-            flor.check_click(event.pos)
-pygame.quit()
+    return "#{:06x}".format(random.randint(0, 0xFFFFFF))
+
+# Si se toca la flor, cambia de color
+if st.button(" "):  # Botón invisible
+    st.session_state.color = random_color()
+
+# Contenedor de la animación
+placeholder = st.empty()
+
+def heart_shape(t):
+    """Genera las coordenadas de un corazón"""
+    x = 16 * np.sin(t) ** 3
+    y = 13 * np.cos(t) - 5 * np.cos(2 * t) - 2 * np.cos(3 * t) - np.cos(4 * t)
+    return x / 5, y / 5  # Reducimos el tamaño
+
+def flower_shape(t, scale=1):
+    """Genera las coordenadas de una flor con pétalos que cambian"""
+    r = 1 + scale * np.sin(6 * t)  # 6 controla el número de pétalos
+    x = r * np.cos(t)
+    y = r * np.sin(t)
+    return x, y
+
+# Generar puntos base
+t = np.linspace(0, 2 * np.pi, 100)
+
+# Animación de transformación
+for i in range(50):  
+    alpha = i / 50  # Progresión de 0 a 1
+    x_heart, y_heart = heart_shape(t)
+    x_flower, y_flower = flower_shape(t, scale=alpha)
+
+    # Interpolación entre corazón y flor
+    x = (1 - alpha) * x_heart + alpha * x_flower
+    y = (1 - alpha) * y_flower + alpha * y_flower
+
+    # Dibujar
+    fig, ax = plt.subplots()
+    ax.plot(x, y, color=st.session_state.color, linewidth=2)
+    ax.fill(x, y, color=st.session_state.color, alpha=0.6)
+    ax.set_aspect('equal')
+    ax.axis('off')
+
+    # Mostrar en Streamlit
+    placeholder.pyplot(fig)
+    time.sleep(0.1)  # Control de velocidad
